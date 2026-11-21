@@ -4,569 +4,417 @@ import { formatToIST } from '../utils/dateUtils';
 import { API_URLS } from '../apiUrls';
 
 export default function AppointmentsDashboard() {
-    // Search state
-    const [searchTerm, setSearchTerm] = useState('');
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
 
-    //time range 
-    const [dateDropdown, setDateDropdown] = useState(false);
-    const [appointmentDateRange, setAppointmentDateRange] = useState('');
+  // Time range state
+  const [dateDropdown, setDateDropdown] = useState(false);
+  const [appointmentDateRange, setAppointmentDateRange] = useState('');
 
-    // Appointments data states
-    const [appointments, setAppointments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+  // Appointments data states
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    // Filter selection states
-    const [statusFilter, setStatusFilter] = useState([]);
+  // Filter selection states
+  const [statusFilter, setStatusFilter] = useState([]);
 
-    // Dropdown visibility state
-    const [statusDropdown, setStatusDropdown] = useState(false);
+  // Dropdown visibility state
+  const [statusDropdown, setStatusDropdown] = useState(false);
 
-    // Dropdown toggle function
-    const toggleDropdown = (setter, currentState) => {
-        setter(!currentState);
-    };
+  // Dropdown toggle function
+  const toggleDropdown = (setter, currentState) => {
+    setter(!currentState);
+  };
 
-    // Filter selection toggle function
-    const toggleFilter = (value, setter) => {
-        setter(prev => {
-            if (prev.includes(value)) {
-                const updated = prev.filter(item => item !== value);
-                return updated;
-            } else {
-                const updated = [...prev, value];
-                return updated;
-            }
-        });
-    };
-
-    // Remove an individual filter
-    const removeFilter = (value, setter) => {
-        setter(prev => {
-            const updated = prev.filter(item => item !== value);
-            return updated;
-        });
-    };
-
-    // Clear all filters
-    const clearAllFilters = () => {
-        setStatusFilter([]);
-        setAppointmentDateRange('');
-    };
-
-    // Fetch appointments from backend
-    const fetchAppointments = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const response = await fetch(API_URLS.APPOINTMENTS.LIST);
-            if (!response.ok) {
-                throw new Error(`Server returned status: ${response.status}`);
-            }
-            const data = await response.json();
-            setAppointments(data);
-        } catch (err) {
-            setError(err.message || 'Failed to fetch appointments');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchAppointments();
-    }, []);
-
-    // Search and filter logic
-    const filteredAppointments = appointments.filter((app) => {
-        const query = searchTerm.toLowerCase().trim();
-
-        // Search bar match
-        const matchesSearch =
-            !query ||
-            app.appointment_id?.toLowerCase().includes(query) ||
-            app.client_id?.toLowerCase().includes(query) ||
-            app.client_name?.toLowerCase().includes(query) ||
-            app.phone_number?.includes(query) ||
-            app.secondary_phone?.includes(query) ||
-            app.email?.toLowerCase().includes(query) ||
-            app.status?.toLowerCase().includes(query);
-
-        // Status filter match
-        const matchesStatus =
-            statusFilter.length === 0 ||
-            statusFilter.includes(app.status?.toLowerCase());
-
-        const today = new Date()
-
-        const endDate = new Date()
-        endDate.setDate(endDate.getDate()+Number(appointmentDateRange))
-
-        const appointmentDate =  new Date(app.appointment_date)
-
-        const matchDateRange =  !appointmentDateRange ||
-        (
-            app.appointment_date && 
-            appointmentDate  >= today && 
-            appointmentDate <= endDate 
-        )
-
-        return matchesSearch && matchesStatus && matchDateRange
+  // Filter selection toggle function
+  const toggleFilter = (value, setter) => {
+    setter((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value);
+      }
+      return [...prev, value];
     });
+  };
 
-    return (
-        <div style={styles.container}>
-            {/* Header */}
-            <div style={styles.header}>
-                <div>
-                    <h2>Appointments Dashboard</h2>
-                    <p style={{ color: '#6b7280', margin: '4px 0 0' }}>
-                        Total Appointments: <strong>{appointments.length}</strong>
-                    </p>
-                </div>
+  // Remove an individual filter
+  const removeFilter = (value, setter) => {
+    setter((prev) => prev.filter((item) => item !== value));
+  };
 
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={fetchAppointments} style={styles.secondaryButton}>
-                        Refresh
-                    </button>
-                    <Link to="/create_appointment">
-                        <button style={styles.primaryButton}>
-                            + Book New Appointment
-                        </button>
-                    </Link>
-                </div>
+  // Clear all filters
+  const clearAllFilters = () => {
+    setStatusFilter([]);
+    setAppointmentDateRange('');
+  };
+
+  // Fetch appointments from backend (e.g. on manual refresh)
+  const fetchAppointments = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(API_URLS.APPOINTMENTS.LIST);
+      if (!response.ok) {
+        throw new Error(`Server returned status: ${response.status}`);
+      }
+      const data = await response.json();
+      setAppointments(data);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch appointments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const response = await fetch(API_URLS.APPOINTMENTS.LIST);
+        if (!response.ok) {
+          throw new Error(`Server returned status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!ignore) {
+          setAppointments(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || 'Failed to fetch appointments');
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Search and filter logic
+  const filteredAppointments = appointments.filter((app) => {
+    const query = searchTerm.toLowerCase().trim();
+
+    // Search bar match
+    const matchesSearch =
+      !query ||
+      app.appointment_id?.toLowerCase().includes(query) ||
+      app.client_id?.toLowerCase().includes(query) ||
+      app.client_name?.toLowerCase().includes(query) ||
+      app.phone_number?.includes(query) ||
+      app.secondary_phone?.includes(query) ||
+      app.email?.toLowerCase().includes(query) ||
+      app.status?.toLowerCase().includes(query);
+
+    // Status filter match
+    const matchesStatus =
+      statusFilter.length === 0 ||
+      statusFilter.includes(app.status?.toLowerCase());
+
+    // Date range filter match
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + Number(appointmentDateRange));
+    const appointmentDate = new Date(app.appointment_date);
+
+    const matchDateRange =
+      !appointmentDateRange ||
+      (app.appointment_date &&
+        appointmentDate >= today &&
+        appointmentDate <= endDate);
+
+    return matchesSearch && matchesStatus && matchDateRange;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            Appointments Dashboard
+          </h2>
+          <p className="text-sm text-muted mt-1">
+            Total Appointments: <strong className="text-foreground">{appointments.length}</strong>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fetchAppointments}
+            className="px-4 py-2 text-sm font-medium rounded-md border border-border bg-surface text-foreground hover:bg-surface-secondary transition-colors cursor-pointer shadow-xs"
+          >
+            Refresh
+          </button>
+          <Link to="/create_appointment">
+            <button
+              type="button"
+              className="px-4 py-2 text-sm font-semibold rounded-md bg-accent hover:bg-accent-hover text-accent-foreground transition-colors cursor-pointer shadow-xs"
+            >
+              + Book New Appointment
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="Search by ID, client name, phone, or status..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-3.5 py-2 text-sm rounded-md border border-border bg-input text-foreground placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-focus focus:border-focus min-w-[280px] flex-1 sm:flex-initial transition-colors"
+        />
+
+        {/* Status Dropdown */}
+        <div className="relative inline-block">
+          <button
+            type="button"
+            onClick={() => toggleDropdown(setStatusDropdown, statusDropdown)}
+            className="px-3.5 py-2 text-sm font-medium rounded-md border border-border bg-surface text-foreground hover:bg-surface-secondary transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+          >
+            <span>Status</span>
+            <span className="text-xs">▼</span>
+          </button>
+
+          {statusDropdown && (
+            <div className="absolute top-[calc(100%+6px)] left-0 bg-surface border border-border rounded-md shadow-lg p-2.5 min-w-[190px] z-30">
+              {['unscheduled', 'scheduled', 'rescheduled', 'cancelled', 'completed'].map(
+                (status) => (
+                  <label
+                    key={status}
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-sm hover:bg-surface-secondary text-foreground text-sm cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={statusFilter.includes(status)}
+                      onChange={() => toggleFilter(status, setStatusFilter)}
+                      className="rounded-xs border-border accent-primary cursor-pointer"
+                    />
+                    <span className="capitalize">{status}</span>
+                  </label>
+                )
+              )}
             </div>
+          )}
+        </div>
 
-            {/* Search and Filters */}
-            <div style={styles.filterContainer}>
-                {/* Search Input */}
-                <input
-                    type="text"
-                    placeholder="Search by ID, client name, phone, or status..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={styles.searchInput}
-                />
+        {/* Appointment Date Filter Dropdown */}
+        <div className="relative inline-block">
+          <button
+            type="button"
+            onClick={() => toggleDropdown(setDateDropdown, dateDropdown)}
+            className="px-3.5 py-2 text-sm font-medium rounded-md border border-border bg-surface text-foreground hover:bg-surface-secondary transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+          >
+            <span>Appointment Date</span>
+            <span className="text-xs">▼</span>
+          </button>
 
-                {/* Status Dropdown */}
-                <div style={styles.dropdownContainer}>
-                    <button
-                        onClick={() => toggleDropdown(
-                            setStatusDropdown,
-                            statusDropdown
-                        )}
-                        style={styles.secondaryButton}
-                    >
-                        Status ▼
-                    </button>
-                        {/* Appointment Date Filter */}
-
-<div style={styles.dropdownContainer}>
-
-    <button
-        onClick={() => toggleDropdown(
-            setDateDropdown,
-            dateDropdown
-        )}
-        style={styles.secondaryButton}
-    >
-        Appointment Date ▼
-    </button>
-
-    {dateDropdown && (
-        <div style={styles.dropdownMenu}>
-
-            {[
+          {dateDropdown && (
+            <div className="absolute top-[calc(100%+6px)] left-0 bg-surface border border-border rounded-md shadow-lg p-2.5 min-w-[190px] z-30">
+              {[
                 { label: 'Next 7 Days', value: '7' },
                 { label: 'Next 14 Days', value: '14' },
-                { label: 'Next 30 Days', value: '30' }
-            ].map((range) => (
-
+                { label: 'Next 30 Days', value: '30' },
+              ].map((range) => (
                 <label
-                    key={range.value}
-                    style={styles.checkboxLabel}
+                  key={range.value}
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-sm hover:bg-surface-secondary text-foreground text-sm cursor-pointer select-none"
                 >
-
-                    <input
-                        type="radio"
-                        name="appointmentDateRange"
-                        checked={appointmentDateRange === range.value}
-                        onChange={() => {
-                            setAppointmentDateRange(range.value);
-                            setDateDropdown(false);
-                        }}
-                    />
-
-                    {range.label}
-
+                  <input
+                    type="radio"
+                    name="appointmentDateRange"
+                    checked={appointmentDateRange === range.value}
+                    onChange={() => {
+                      setAppointmentDateRange(range.value);
+                      setDateDropdown(false);
+                    }}
+                    className="rounded-xs border-border accent-primary cursor-pointer"
+                  />
+                  <span>{range.label}</span>
                 </label>
-
-            ))}
-
-        </div>
-    )}
-
-</div>
-
-                    {statusDropdown && (
-                        <div style={styles.dropdownMenu}>
-                            {[
-                                'unscheduled',
-                                'scheduled',
-                                'rescheduled',
-                                'cancelled',
-                                'completed'
-                            ].map((status) => (
-                                <label
-                                    key={status}
-                                    style={styles.checkboxLabel}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={statusFilter.includes(status)}
-                                        onChange={() => toggleFilter(
-                                            status,
-                                            setStatusFilter
-                                        )}
-                                    />
-                                    <span style={{ textTransform: 'capitalize' }}>{status}</span>
-                                </label>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Clear All Filters */}
-                {statusFilter.length > 0 && (
-                    <button
-                        onClick={clearAllFilters}
-                        style={styles.clearButton}
-                    >
-                        Clear All
-                    </button>
-                )}
+              ))}
             </div>
-{/* Selected Date Filter Tag */}
-
-{appointmentDateRange && (
-
-    <div style={styles.tagsContainer}>
-
-        <span style={styles.filterTag}>
-
-            Next {appointmentDateRange} Days
-
-            <button
-                onClick={() => setAppointmentDateRange('')}
-                style={styles.removeTagButton}
-            >
-                ×
-            </button>
-
-        </span>
-
-    </div>
-)}
-            {/* Selected Filter Tags */}
-            {statusFilter.length > 0 && (
-                <div style={styles.tagsContainer}>
-                    {statusFilter.map((status) => (
-                        <span key={status} style={styles.filterTag}>
-                            <span style={{ textTransform: 'capitalize' }}>{status}</span>
-                            <button
-                                onClick={() => removeFilter(
-                                    status,
-                                    setStatusFilter
-                                )}
-                                style={styles.removeTagButton}
-                            >
-                                ×
-                            </button>
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            {/* Loading, Error & Data Table */}
-            {loading ? (
-                <p style={styles.emptyTd}>
-                    Loading appointments data...
-                </p>
-            ) : error ? (
-                <p style={{ color: 'red', padding: '20px' }}>
-                    Error: {error}
-                </p>
-            ) : (
-                <div style={styles.tableWrapper}>
-                    <table style={styles.table}>
-                        <thead>
-                            <tr style={styles.thRow}>
-                                <th style={styles.th}>Sr no</th>
-                                <th style={styles.th}>Appointment ID</th>
-                                <th style={styles.th}>Client ID</th>
-                                <th style={styles.th}>Client Name</th>
-                                <th style={styles.th}>Phone Number I</th>
-                                <th style={styles.th}>Phone Number II</th>
-                                <th style={styles.th}>Email</th>
-                                <th style={styles.th}>Appointment Date (IST)</th>
-                                <th style={styles.th}>Status</th>
-                                <th style={styles.th}>Assigned To</th>
-                                <th style={styles.th}>Created At (IST)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {appointments.length === 0 ? (
-                                <tr>
-                                    <td colSpan="11" style={styles.emptyTd}>
-                                        No appointments found in the database.
-                                    </td>
-                                </tr>
-                            ) : filteredAppointments.length === 0 ? (
-                                <tr>
-                                    <td colSpan="11" style={styles.emptyTd}>
-                                        No appointments match your search or filter criteria.
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredAppointments.map((app, index) => (
-                                    <tr key={app.appointment_id} style={styles.tr}>
-                                        <td style={styles.td}>{index + 1}</td>
-                                        <td
-                                            style={{
-                                                ...styles.td,
-                                                fontFamily: 'monospace',
-                                                fontWeight: 'bold',
-                                            }}
-                                        >
-                                            {app.appointment_id}
-                                        </td>
-                                        <td
-                                            style={{
-                                                ...styles.td,
-                                                fontFamily: 'monospace',
-                                            }}
-                                        >
-                                            {app.client_id || '-'}
-                                        </td>
-                                        <td style={{ ...styles.td, fontWeight: '600' }}>
-                                            {app.client_name || '-'}
-                                        </td>
-                                        <td style={styles.td}>{app.phone_number || '-'}</td>
-                                        <td style={styles.td}>
-                                            {app.secondary_phone || '-'}
-                                        </td>
-                                        <td style={styles.td}>{app.email || '-'}</td>
-                                        <td style={styles.td}>
-                                            {app.appointment_date
-                                                ? formatToIST(app.appointment_date)
-                                                : '-'}
-                                        </td>
-                                        <td style={styles.td}>
-                                            <span style={getStatusBadgeStyle(app.status)}>
-                                                {app.status || 'unscheduled'}
-                                            </span>
-                                        </td>
-                                        <td style={styles.td}>{app.assigned_to || '-'}</td>
-                                        <td style={styles.td}>
-                                            {app.created_at
-                                                ? formatToIST(app.created_at)
-                                                : '-'}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+          )}
         </div>
-    );
+
+        {/* Clear All Filters */}
+        {(statusFilter.length > 0 || appointmentDateRange) && (
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="px-3.5 py-2 text-sm font-semibold rounded-md border border-[#fca5a5] bg-[#fee2e2] hover:bg-[#fecaca] text-[#b91c1c] dark:border-[#5a272d] dark:bg-[#3b2023] dark:hover:bg-[#4c292d] dark:text-[#f87171] transition-colors cursor-pointer"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+
+      {/* Selected Filter Tags */}
+      {(statusFilter.length > 0 || appointmentDateRange) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date Tag */}
+          {appointmentDateRange && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-border bg-surface-secondary text-foreground shadow-2xs">
+              <span>Next {appointmentDateRange} Days</span>
+              <button
+                type="button"
+                onClick={() => setAppointmentDateRange('')}
+                className="text-muted hover:text-foreground text-sm leading-none cursor-pointer p-0"
+                aria-label="Remove date range filter"
+              >
+                ×
+              </button>
+            </span>
+          )}
+
+          {/* Status Tags */}
+          {statusFilter.map((status) => (
+            <span
+              key={status}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-border bg-surface-secondary text-foreground shadow-2xs"
+            >
+              <span className="capitalize">{status}</span>
+              <button
+                type="button"
+                onClick={() => removeFilter(status, setStatusFilter)}
+                className="text-muted hover:text-foreground text-sm leading-none cursor-pointer p-0"
+                aria-label={`Remove filter ${status}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Loading, Error & Data Table */}
+      {loading ? (
+        <div className="p-12 text-center text-muted bg-surface border border-border rounded-lg text-sm">
+          Loading appointments data...
+        </div>
+      ) : error ? (
+        <div className="p-4 rounded-md border border-[#fca5a5] bg-[#fee2e2] text-[#991b1b] dark:border-[#5a272d] dark:bg-[#3b2023] dark:text-[#f87171] text-sm">
+          Error: {error}
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-border rounded-lg bg-surface shadow-xs">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr className="bg-primary text-primary-foreground dark:bg-surface-secondary dark:text-foreground border-b border-divider">
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Sr no
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Appointment ID
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Client ID
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Client Name
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Phone Number I
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Phone Number II
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Email
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Appointment Date (IST)
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Status
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Assigned To
+                </th>
+                <th className="py-3 px-4 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                  Created At (IST)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="py-12 px-4 text-center text-muted text-sm">
+                    No appointments found in the database.
+                  </td>
+                </tr>
+              ) : filteredAppointments.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="py-12 px-4 text-center text-muted text-sm">
+                    No appointments match your search or filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredAppointments.map((app, index) => (
+                  <tr
+                    key={app.appointment_id}
+                    className="border-b border-divider hover:bg-surface-secondary/60 dark:hover:bg-surface-secondary/40 transition-colors"
+                  >
+                    <td className="py-3.5 px-4 text-muted">{index + 1}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-foreground">
+                      {app.appointment_id}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-muted">
+                      {app.client_id || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-foreground">
+                      {app.client_name || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 text-foreground">{app.phone_number || '-'}</td>
+                    <td className="py-3.5 px-4 text-muted">
+                      {app.secondary_phone || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 text-foreground">{app.email || '-'}</td>
+                    <td className="py-3.5 px-4 text-foreground whitespace-nowrap">
+                      {app.appointment_date ? formatToIST(app.appointment_date) : '-'}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={getStatusBadgeClass(app.status)}>
+                        {app.status || 'unscheduled'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-foreground">{app.assigned_to || '-'}</td>
+                    <td className="py-3.5 px-4 text-muted whitespace-nowrap">
+                      {app.created_at ? formatToIST(app.created_at) : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
-// Status Badge Styling
-const getStatusBadgeStyle = (status) => {
-    const badgeMap = {
-        scheduled: { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' },
-        completed: { bg: '#dcfce7', color: '#15803d', border: '#bbf7d0' },
-        rescheduled: { bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
-        cancelled: { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
-        unscheduled: { bg: '#f3f4f6', color: '#4b5563', border: '#e5e7eb' },
-    };
-    const theme =
-        badgeMap[status?.toLowerCase()] || {
-            bg: '#f3f4f6',
-            color: '#4b5563',
-            border: '#e5e7eb',
-        };
-
-    return {
-        backgroundColor: theme.bg,
-        color: theme.color,
-        border: `1px solid ${theme.border}`,
-        padding: '3px 8px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '600',
-        display: 'inline-block',
-        textTransform: 'capitalize',
-    };
-};
-
-// Component Styling
-const styles = {
-    container: {
-        padding: '24px',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-    },
-
-    header: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '12px',
-    },
-
-    filterContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '10px',
-        marginBottom: '16px',
-    },
-
-    searchInput: {
-        padding: '9px 14px',
-        borderRadius: '6px',
-        border: '1px solid #d1d5db',
-        minWidth: '280px',
-        outline: 'none',
-    },
-
-    dropdownContainer: {
-        position: 'relative',
-        display: 'inline-block',
-    },
-
-    dropdownMenu: {
-        position: 'absolute',
-        top: 'calc(100% + 5px)',
-        left: 0,
-        backgroundColor: '#fff',
-        border: '1px solid #d1d5db',
-        borderRadius: '6px',
-        padding: '10px',
-        minWidth: '180px',
-        zIndex: 10,
-        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-    },
-
-    checkboxLabel: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '7px',
-        cursor: 'pointer',
-    },
-
-    clearButton: {
-        backgroundColor: '#fee2e2',
-        color: '#b91c1c',
-        border: '1px solid #fecaca',
-        padding: '9px 14px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontWeight: '600',
-    },
-
-    tagsContainer: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '8px',
-        marginBottom: '16px',
-    },
-
-    filterTag: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        backgroundColor: '#eff6ff',
-        color: '#1d4ed8',
-        border: '1px solid #bfdbfe',
-        padding: '5px 10px',
-        borderRadius: '20px',
-        fontSize: '13px',
-    },
-
-    removeTagButton: {
-        background: 'none',
-        border: 'none',
-        color: '#1d4ed8',
-        cursor: 'pointer',
-        fontSize: '17px',
-        padding: 0,
-        lineHeight: 1,
-    },
-
-    primaryButton: {
-        backgroundColor: '#0066cc',
-        color: '#fff',
-        border: 'none',
-        padding: '9px 16px',
-        borderRadius: '6px',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
-
-    secondaryButton: {
-        backgroundColor: '#f3f4f6',
-        color: '#374151',
-        border: '1px solid #d1d5db',
-        padding: '9px 14px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-    },
-
-    tableWrapper: {
-        overflowX: 'auto',
-        border: '1px solid #e5e7eb',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    },
-
-    table: {
-        width: '100%',
-        borderCollapse: 'collapse',
-        textAlign: 'left',
-        fontSize: '14px',
-    },
-
-    thRow: {
-        backgroundColor: '#f9fafb',
-        borderBottom: '2px solid #e5e7eb',
-    },
-
-    th: {
-        padding: '12px 14px',
-        fontWeight: '600',
-        color: '#374151',
-        whiteSpace: 'nowrap',
-    },
-
-    tr: {
-        borderBottom: '1px solid #f3f4f6',
-    },
-
-    td: {
-        padding: '12px 14px',
-        color: '#1f2937',
-        whiteSpace: 'nowrap',
-    },
-
-    emptyTd: {
-        textAlign: 'center',
-        padding: '36px',
-        color: '#6b7280',
-        fontSize: '14px',
-    },
-};
+// Status Badge Styling Helper
+function getStatusBadgeClass(status) {
+  const base = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border';
+  switch (status?.toLowerCase()) {
+    case 'scheduled':
+      return `${base} bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd] dark:bg-[#1e3a5f] dark:text-[#7dd3fc] dark:border-[#2563eb]`;
+    case 'completed':
+      return `${base} bg-[#dcfce7] text-[#15803d] border-[#bbf7d0] dark:bg-[#1b3528] dark:text-[#4ade80] dark:border-[#25503c]`;
+    case 'rescheduled':
+      return `${base} bg-[#fef3c7] text-[#b45309] border-[#fde68a] dark:bg-[#3b2e1e] dark:text-[#fbbf24] dark:border-[#574125]`;
+    case 'cancelled':
+      return `${base} bg-[#fee2e2] text-[#b91c1c] border-[#fca5a5] dark:bg-[#3b2023] dark:text-[#f87171] dark:border-[#5a272d]`;
+    case 'unscheduled':
+    default:
+      return `${base} bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb] dark:bg-[#2d2b38] dark:text-[#9ca3af] dark:border-[#3a3542]`;
+  }
+}
