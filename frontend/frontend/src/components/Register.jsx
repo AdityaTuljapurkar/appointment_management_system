@@ -6,7 +6,7 @@ export default function Register() {
     fullName: '',
     username: '',
     email: '',
-    role: 'Staff',
+    role: 'Advisor',
     password: '',
     confirmPassword: '',
     agreeTerms: false,
@@ -156,9 +156,10 @@ export default function Register() {
                 onChange={handleChange}
                 className="w-full px-3.5 py-2.5 text-sm rounded-md border border-border bg-input text-foreground focus:outline-hidden focus:ring-1 focus:ring-focus focus:border-focus transition-colors"
               >
-                <option value="Staff">Staff Member</option>
                 <option value="Advisor">Financial Advisor</option>
-                <option value="Administrator">Administrator</option>
+                <option value="Relationship Manager">Relationship Manager</option>
+                <option value="Coordinator">Coordinator</option>
+                <option value="Admin">Admin / Manager</option>
               </select>
             </div>
           </div>

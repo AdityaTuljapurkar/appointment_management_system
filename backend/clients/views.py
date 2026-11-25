@@ -1,11 +1,17 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Clients
 from .serializers import ClientSerializer
-
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAdminUser,
+    IsAuthenticatedOrReadOnly
+)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_clients(request):
     try:
         queryset = Clients.objects.all().order_by('client_name')
@@ -18,6 +24,7 @@ def list_clients(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_client(request):
     try:
         client_id = request.data.get('client_id')

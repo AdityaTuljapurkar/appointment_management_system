@@ -1,14 +1,20 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view ,permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Appointment
 from .serializers import AppointmentSerializer
 from clients.models import Clients
-
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAdminUser,
+    IsAuthenticatedOrReadOnly
+)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_appointments(request):
     try:
         status_choice = request.data.get('status', 'unscheduled')
@@ -68,6 +74,7 @@ def create_appointments(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_appointments(request):
     try:
         # select_related('client') fetches the linked client details in a single SQL query
