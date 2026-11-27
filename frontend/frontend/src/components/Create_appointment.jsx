@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { toISTISOString, formatToIST } from '../utils/dateUtils';
 import { API_URLS } from '../API_urls';
 
@@ -44,49 +45,50 @@ export default function CreateAppointment({
         assigned_to: formData.assigned_to.trim(),
       };
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await axios.post(apiUrl, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
 
-      const data = await response.json();
+      const data = response.data;
+      const serverData = data.data || {};
+      setConfirmedAppointment({
+        appointment_id: data.appointment_id || serverData.appointment_id || 'N/A',
+        client_id: serverData.client_id || formData.client_id,
+        client_name: serverData.client_name || formData.client_name || 'N/A',
+        email: serverData.email || formData.email || 'N/A',
+        phone_number: serverData.phone_number || 'N/A',
+        appointment_date: serverData.appointment_date || payload.appointment_date,
+        status: serverData.status || formData.status,
+        assigned_to: formData.assigned_to || serverData.assigned_to || 'Unassigned',
+      });
 
-      if (response.ok) {
-        const serverData = data.data || {};
-        setConfirmedAppointment({
-          appointment_id: data.appointment_id || serverData.appointment_id || 'N/A',
-          client_id: serverData.client_id || formData.client_id,
-          client_name: serverData.client_name || formData.client_name || 'N/A',
-          email: serverData.email || formData.email || 'N/A',
-          phone_number: serverData.phone_number || 'N/A',
-          appointment_date: serverData.appointment_date || payload.appointment_date,
-          status: serverData.status || formData.status,
-          assigned_to: formData.assigned_to || serverData.assigned_to || 'Unassigned',
-        });
+      // Reset form
+      setFormData({
+        client_id: '',
+        client_name: '',
+        email: '',
+        appointment_date: '',
+        status: 'scheduled',
+        assigned_to: '',
+      });
 
-        // Reset form
-        setFormData({
-          client_id: '',
-          client_name: '',
-          email: '',
-          appointment_date: '',
-          status: 'scheduled',
-          assigned_to: '',
-        });
-
-        if (onAppointmentCreated) {
-          onAppointmentCreated(data);
-        }
-      } else if (response.status === 404) {
+      if (onAppointmentCreated) {
+        onAppointmentCreated(data);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        window.location.href = '/logout';
+        return;
+      }
+      if (err.response?.status === 404) {
         setError('User not found');
       } else {
-        setError(data.error || data.message || 'Failed to create appointment');
+        setError(
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          'Failed to create appointment'
+        );
       }
-    } catch {
-      setError('Network error: Could not reach the server.');
     } finally {
       setLoading(false);
     }

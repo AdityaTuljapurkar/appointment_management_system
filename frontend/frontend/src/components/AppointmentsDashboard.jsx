@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { formatToIST } from '../utils/dateUtils';
 import { API_URLS } from '../apiUrls';
 
@@ -53,14 +54,16 @@ export default function AppointmentsDashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(API_URLS.APPOINTMENTS.LIST);
-      if (!response.ok) {
-        throw new Error(`Server returned status: ${response.status}`);
-      }
-      const data = await response.json();
-      setAppointments(data);
+      const response = await axios.get(API_URLS.APPOINTMENTS.LIST, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      setAppointments(response.data);
     } catch (err) {
-      setError(err.message || 'Failed to fetch appointments');
+      if (err.response?.status === 401) {
+        window.location.href = '/logout';
+        return;
+      }
+      setError(err.response?.data?.error || err.message || 'Failed to fetch appointments');
     } finally {
       setLoading(false);
     }
@@ -70,17 +73,19 @@ export default function AppointmentsDashboard() {
     let ignore = false;
     const load = async () => {
       try {
-        const response = await fetch(API_URLS.APPOINTMENTS.LIST);
-        if (!response.ok) {
-          throw new Error(`Server returned status: ${response.status}`);
-        }
-        const data = await response.json();
+        const response = await axios.get(API_URLS.APPOINTMENTS.LIST, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        });
         if (!ignore) {
-          setAppointments(data);
+          setAppointments(response.data);
         }
       } catch (err) {
+        if (err.response?.status === 401) {
+          window.location.href = '/logout';
+          return;
+        }
         if (!ignore) {
-          setError(err.message || 'Failed to fetch appointments');
+          setError(err.response?.data?.error || err.message || 'Failed to fetch appointments');
         }
       } finally {
         if (!ignore) {

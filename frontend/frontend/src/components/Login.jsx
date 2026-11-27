@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { API_URLS } from '../API_urls';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -20,17 +21,33 @@ export default function Login() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Placeholder for backend authentication flow
-    setTimeout(() => {
+    try {
+      const response = await axios.post(API_URLS.EMPLOYEES.LOGIN, {
+        employee_id: formData.username.trim(),
+        password: formData.password,
+      });
+
+      const { accessToken, refreshToken, employee } = response.data;
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('employee', JSON.stringify(employee));
+
+      window.location.href = '/';
+    } catch (err) {
+      setError(
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Invalid credentials or server unreachable.'
+      );
+    } finally {
       setLoading(false);
-      // Simulating a temporary notice until backend auth endpoint is attached
-      setError('Backend authentication will be wired up with your auth endpoint.');
-    }, 600);
+    }
   };
 
   return (
@@ -62,7 +79,7 @@ export default function Login() {
               htmlFor="username"
               className="block text-sm font-semibold text-foreground"
             >
-              Username or Email
+              Employee ID or Email
             </label>
             <div className="relative">
               <input
@@ -70,7 +87,7 @@ export default function Login() {
                 id="username"
                 name="username"
                 required
-                placeholder="Enter your username or email"
+                placeholder="e.g. EMP-a1b2c3 or name@company.com"
                 value={formData.username}
                 onChange={handleChange}
                 className="w-full px-3.5 py-2.5 text-sm rounded-md border border-border bg-input text-foreground placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-focus focus:border-focus transition-colors"
@@ -154,16 +171,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer Link */}
-        <div className="pt-4 border-t border-divider text-center text-xs sm:text-sm text-muted">
-          Don&apos;t have an account?{' '}
-          <Link
-            to="/register"
-            className="font-semibold text-accent hover:underline"
-          >
-            Create an account
-          </Link>
-        </div>
       </div>
     </div>
   );

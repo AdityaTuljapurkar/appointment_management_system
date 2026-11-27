@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { toISTISOString } from '../utils/dateUtils';
 import { API_URLS } from '../API_urls';
 
@@ -48,42 +49,41 @@ export default function CreateClient({
           : null,
       };
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await axios.post(apiUrl, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(
-          `${data.message || 'Client created successfully'}${
-            data.client_id ? ` (ID: ${data.client_id})` : ''
-          }`
-        );
-        setFormData({
-          client_id: '',
-          client_name: '',
-          cutomer_phoneNumber: '',
-          client_phoneNumber_secoundary: '',
-          email: '',
-          client_RiskProfile: 'Conservative',
-          client_category: 'Retail',
-          Profile_value: '',
-          client_objective: '',
-          last_review_date: '',
-        });
-        if (onClientCreated) {
-          onClientCreated(data);
-        }
-      } else {
-        setError(data.error || data.message || 'Failed to create client');
+      const data = response.data;
+      setMessage(
+        `${data.message || 'Client created successfully'}${
+          data.client_id ? ` (ID: ${data.client_id})` : ''
+        }`
+      );
+      setFormData({
+        client_id: '',
+        client_name: '',
+        cutomer_phoneNumber: '',
+        client_phoneNumber_secoundary: '',
+        email: '',
+        client_RiskProfile: 'Conservative',
+        client_category: 'Retail',
+        Profile_value: '',
+        client_objective: '',
+        last_review_date: '',
+      });
+      if (onClientCreated) {
+        onClientCreated(data);
       }
-    } catch {
-      setError('Network error: Could not reach the server.');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        window.location.href = '/logout';
+        return;
+      }
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Network error: Could not reach the server.'
+      );
     } finally {
       setLoading(false);
     }

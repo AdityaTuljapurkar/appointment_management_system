@@ -1,0 +1,57 @@
+services:
+  db:
+    image:  postgres:16-alpine
+    container_name: appointment_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appointment_db
+      POSTGRES_USER: admin_dev
+      POSTGRES_PASSWORD: database_123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_dev -d appointment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: appointment_backend
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000 "
+    volumes:
+      - ./backend:/app/backend
+    ports:
+      - "8000:8000"
+    environment:
+      DB_NAME: appointment_db
+      DB_USER: admin_dev
+      DB_PASSWORD: database_123456
+      DB_HOST: db
+      DB_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend/frontend
+      dockerfile: Dockerfile
+    container_name: appointment_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend/frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
